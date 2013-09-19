@@ -3,6 +3,7 @@ import struct
 
 VARIABLE_LEN = 0
 
+
 class _Column(object):
     """Prototype class for datatype objects."""
     datalen = VARIABLE_LEN
@@ -15,6 +16,7 @@ class _Column(object):
 
     def decode(self, data):
         pass
+
 
 class Varchar(_Column):
     """Represents dnt format varchar fields."""
@@ -35,6 +37,7 @@ class Varchar(_Column):
         """Decode byte length of the varchar field excluding length marker."""
         return struct.unpack('<H', data)[0]
 
+
 class Boolean(_Column):
     """Represents dnt format boolean fields."""
     datalen = 4
@@ -46,6 +49,7 @@ class Boolean(_Column):
     def decode(self, data):
         """Decode a dnt boolean field to a boolean."""
         return struct.unpack('?xxx', data)[0]
+
 
 class Integer(_Column):
     """Represents dnt format unsigned Integer fields."""
@@ -59,6 +63,7 @@ class Integer(_Column):
         """Decode a dnt unsigned integer to an integer."""
         return struct.unpack('<I', data)[0]
 
+
 class Float(_Column):
     """Represents a dnt format floating point field."""
     datalen = 4
@@ -70,4 +75,3 @@ class Float(_Column):
     def decode(self, data):
         """Decode a dnt float to a float."""
         return struct.unpack('<f', data)[0]
-
