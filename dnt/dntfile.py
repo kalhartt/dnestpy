@@ -1,6 +1,7 @@
 #!/usr/bin/python2.7
 import struct
 import column
+from collections import namedtuple
 
 _HEADER = b'\x00\x00\x00\x00'
 _TAIL = b'\x05THEND'
@@ -19,6 +20,7 @@ class DNTFile(object):
     def __init__(self, filename):
         self.filename = filename
         self.columns = []
+        self.Row = None
         self.rows = []
 
     def read_all(self):
@@ -43,38 +45,35 @@ class DNTFile(object):
 
             while len(columns) < self.num_columns:
                 name_length = struct.unpack('<H', f.read(2))[0]
-                name = f.read(name_length).decode('euckr')
+                # hacky, assumes all column names parsed start with "_"
+                name = f.read(name_length).decode('euckr')[1:]
                 dtype = _TYPEMAP[struct.unpack('B', f.read(1))[0]]
                 columns.append(dtype(name))
 
             self.row_start = f.tell()
         self.columns = columns
+        row_names = ['location_'] + [x.name for x in self.columns]
+        self.Row = namedtuple('Row', row_names)
 
     def read_row(self, f):
         """Parse row starting at cursor location in open file f."""
         assert self.columns, "No columns defined."
-        start = f.tell()
-        data = []
+        data = {'location_': f.tell()}
         for col in self.columns:
             if col.datalen == column.VARIABLE_LEN:
                 datalen = col.decodelen(f.read(col.markerlen))
-                data.append(col.decode(f.read(datalen)))
+                data[col.name] = col.decode(f.read(datalen))
             else:
-                data.append(col.decode(f.read(col.datalen)))
-        self.rows.append({
-            'location': start,
-            'data': data
-        })
+                data[col.name] = col.decode(f.read(col.datalen))
+        self.rows.append(self.Row(**data))
 
-    def write_row(self, f, data):
+    def write_row(self, f, row):
         """Write a row at cursor location in open file f.
 
-        Checks data for type matches with defined columns then blindly writes
-        the values to the open file f. If overwriting a row, be sure
-        the old and new row have identical encoded byte lengths.
+        Blindly writes the values to the open file f. If overwriting a row, be
+        sure the old and new row have identical encoded byte lengths.
         """
-        assert len(data) == len(self.columns), "Data / Column length mismatch."
         out = ""
-        for col, val in zip(self.columns, data):
+        for col, val in zip(self.columns, row[1:]):
             out += col.encode(val)
         f.write(out)
